@@ -23,14 +23,16 @@ type Page[T any] struct {
 }
 
 type ListFilter struct {
-	Query       string
-	Status      string
-	CategoryID  *uuid.UUID
-	WarehouseID *uuid.UUID
-	SKUID       *uuid.UUID
-	LowStock    bool
-	Page        int
-	PageSize    int
+	Query         string
+	Status        string
+	CategoryID    *uuid.UUID
+	WarehouseID   *uuid.UUID
+	SKUID         *uuid.UUID
+	LowStock      bool
+	ReferenceType string
+	ReferenceID   string
+	Page          int
+	PageSize      int
 }
 
 type CreateCategoryInput struct {
@@ -144,8 +146,10 @@ type Repository interface {
 	UpdateProduct(context.Context, uuid.UUID, UpdateProductInput, uuid.UUID) (domain.Product, error)
 	DeleteProduct(context.Context, uuid.UUID, uuid.UUID) error
 	AssignCategory(context.Context, uuid.UUID, AssignCategoryInput) (domain.ProductCategory, error)
+	ListProductCategories(context.Context, uuid.UUID) ([]domain.ProductCategory, error)
 	RemoveCategory(context.Context, uuid.UUID, uuid.UUID) error
 	CreateImage(context.Context, domain.ProductImage) (domain.ProductImage, error)
+	ListImages(context.Context, uuid.UUID) ([]domain.ProductImage, error)
 	UpdateImage(context.Context, uuid.UUID, uuid.UUID, UpdateImageInput) (domain.ProductImage, error)
 	DeleteImage(context.Context, uuid.UUID, uuid.UUID) error
 
@@ -171,6 +175,7 @@ type Repository interface {
 	ListMovements(context.Context, ListFilter) (Page[domain.StockMovement], error)
 
 	CreateReservation(context.Context, CreateReservationInput, uuid.UUID) (domain.Reservation, error)
+	ListReservations(context.Context, ListFilter) (Page[domain.Reservation], error)
 	GetReservation(context.Context, uuid.UUID) (domain.Reservation, error)
 	ConfirmReservation(context.Context, uuid.UUID, uuid.UUID) (domain.Reservation, error)
 	ReleaseReservation(context.Context, uuid.UUID, uuid.UUID) (domain.Reservation, error)

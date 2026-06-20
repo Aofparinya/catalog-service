@@ -93,7 +93,7 @@ func (client *Client) Validate(ctx context.Context, token string) (User, error) 
 	if err := json.NewDecoder(response.Body).Decode(&user); err != nil {
 		return User{}, fmt.Errorf("%w: decode response: %v", ErrUnavailable, err)
 	}
-	if user.Type != "access" {
+	if user.Type != "access" && user.Type != "service" {
 		return User{}, ErrUnauthorized
 	}
 	client.store(key, user)

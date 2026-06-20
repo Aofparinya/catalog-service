@@ -183,6 +183,18 @@ func (handler *Handler) AssignProductCategory(context echo.Context) error {
 	return context.JSON(http.StatusCreated, item)
 }
 
+func (handler *Handler) ListProductCategories(context echo.Context) error {
+	productID, err := pathUUID(context, "id")
+	if err != nil {
+		return err
+	}
+	items, err := handler.service.ListProductCategories(context.Request().Context(), productID)
+	if err != nil {
+		return err
+	}
+	return context.JSON(http.StatusOK, items)
+}
+
 func (handler *Handler) RemoveProductCategory(context echo.Context) error {
 	productID, categoryID, err := pathPair(context, "id", "categoryId")
 	if err != nil {
@@ -208,6 +220,18 @@ func (handler *Handler) CreateProductImage(context echo.Context) error {
 		return err
 	}
 	return context.JSON(http.StatusCreated, item)
+}
+
+func (handler *Handler) ListProductImages(context echo.Context) error {
+	productID, err := pathUUID(context, "id")
+	if err != nil {
+		return err
+	}
+	items, err := handler.service.ListImages(context.Request().Context(), productID)
+	if err != nil {
+		return err
+	}
+	return context.JSON(http.StatusOK, items)
 }
 
 func (handler *Handler) UpdateProductImage(context echo.Context) error {
@@ -474,6 +498,18 @@ func (handler *Handler) CreateReservation(context echo.Context) error {
 	return context.JSON(http.StatusCreated, item)
 }
 
+func (handler *Handler) ListReservations(context echo.Context) error {
+	filter, err := reservationListFilter(context)
+	if err != nil {
+		return err
+	}
+	items, err := handler.service.ListReservations(context.Request().Context(), filter)
+	if err != nil {
+		return err
+	}
+	return context.JSON(http.StatusOK, items)
+}
+
 func (handler *Handler) GetReservation(context echo.Context) error {
 	id, err := pathUUID(context, "id")
 	if err != nil {
@@ -578,6 +614,32 @@ func inventoryListFilter(context echo.Context) (application.ListFilter, error) {
 		}
 		filter.LowStock = lowStock
 	}
+	return filter, nil
+}
+
+func reservationListFilter(context echo.Context) (application.ListFilter, error) {
+	filter, err := baseListFilter(context)
+	if err != nil {
+		return application.ListFilter{}, err
+	}
+	if value := strings.TrimSpace(context.QueryParam("warehouseId")); value != "" {
+		id, err := uuid.Parse(value)
+		if err != nil {
+			return application.ListFilter{}, echo.NewHTTPError(http.StatusBadRequest, "warehouseId must be a valid UUID")
+		}
+		filter.WarehouseID = &id
+	}
+	if value := strings.ToUpper(strings.TrimSpace(context.QueryParam("status"))); value != "" {
+		if value != string(domain.ReservationPending) &&
+			value != string(domain.ReservationConfirmed) &&
+			value != string(domain.ReservationReleased) &&
+			value != string(domain.ReservationExpired) {
+			return application.ListFilter{}, echo.NewHTTPError(http.StatusBadRequest, "invalid status")
+		}
+		filter.Status = value
+	}
+	filter.ReferenceType = context.QueryParam("referenceType")
+	filter.ReferenceID = context.QueryParam("referenceId")
 	return filter, nil
 }
 

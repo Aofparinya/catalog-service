@@ -191,6 +191,25 @@ func (r *Repository) AssignCategory(ctx context.Context, productID uuid.UUID, in
 	}
 	return domain.ProductCategory{ProductID: m.ProductID, CategoryID: m.CategoryID, IsPrimary: m.IsPrimary, CreatedAt: m.CreatedAt}, nil
 }
+func (r *Repository) ListProductCategories(ctx context.Context, productID uuid.UUID) ([]domain.ProductCategory, error) {
+	var models []productCategoryModel
+	if err := r.db.WithContext(ctx).
+		Where("product_id = ?", productID).
+		Order("is_primary DESC, created_at").
+		Find(&models).Error; err != nil {
+		return nil, translate(err)
+	}
+	values := make([]domain.ProductCategory, 0, len(models))
+	for _, model := range models {
+		values = append(values, domain.ProductCategory{
+			ProductID:  model.ProductID,
+			CategoryID: model.CategoryID,
+			IsPrimary:  model.IsPrimary,
+			CreatedAt:  model.CreatedAt,
+		})
+	}
+	return values, nil
+}
 func (r *Repository) RemoveCategory(ctx context.Context, productID, categoryID uuid.UUID) error {
 	result := r.db.WithContext(ctx).Delete(&productCategoryModel{}, "product_id = ? AND category_id = ?", productID, categoryID)
 	if result.Error != nil {
@@ -215,6 +234,20 @@ func (r *Repository) CreateImage(ctx context.Context, value domain.ProductImage)
 		return domain.ProductImage{}, translate(err)
 	}
 	return imageFromModel(m), nil
+}
+func (r *Repository) ListImages(ctx context.Context, productID uuid.UUID) ([]domain.ProductImage, error) {
+	var models []productImageModel
+	if err := r.db.WithContext(ctx).
+		Where("product_id = ?", productID).
+		Order("is_primary DESC, sort_order, created_at").
+		Find(&models).Error; err != nil {
+		return nil, translate(err)
+	}
+	values := make([]domain.ProductImage, 0, len(models))
+	for _, model := range models {
+		values = append(values, imageFromModel(model))
+	}
+	return values, nil
 }
 func (r *Repository) UpdateImage(ctx context.Context, productID, imageID uuid.UUID, input application.UpdateImageInput) (domain.ProductImage, error) {
 	var m productImageModel

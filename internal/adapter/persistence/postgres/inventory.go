@@ -234,6 +234,42 @@ func (r *Repository) CreateReservation(
 	return r.GetReservation(ctx, result.ID)
 }
 
+func (r *Repository) ListReservations(ctx context.Context, filter application.ListFilter) (application.Page[domain.Reservation], error) {
+	query := r.db.WithContext(ctx).Model(&reservationModel{})
+	if filter.WarehouseID != nil {
+		query = query.Where("warehouse_id = ?", *filter.WarehouseID)
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+	if filter.ReferenceType != "" {
+		query = query.Where("reference_type = ?", filter.ReferenceType)
+	}
+	if filter.ReferenceID != "" {
+		query = query.Where("reference_id ILIKE ?", "%"+filter.ReferenceID+"%")
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return application.Page[domain.Reservation]{}, translate(err)
+	}
+	var models []reservationModel
+	if err := query.Order("created_at DESC").
+		Limit(filter.PageSize).
+		Offset((filter.Page - 1) * filter.PageSize).
+		Find(&models).Error; err != nil {
+		return application.Page[domain.Reservation]{}, translate(err)
+	}
+	values := make([]domain.Reservation, 0, len(models))
+	for _, model := range models {
+		reservation, err := r.reservationFromModel(ctx, model)
+		if err != nil {
+			return application.Page[domain.Reservation]{}, err
+		}
+		values = append(values, reservation)
+	}
+	return application.NewPage(values, filter.Page, filter.PageSize, total), nil
+}
+
 func (r *Repository) GetReservation(ctx context.Context, id uuid.UUID) (domain.Reservation, error) {
 	var model reservationModel
 	if err := r.db.WithContext(ctx).First(&model, "id = ?", id).Error; err != nil {

@@ -112,6 +112,13 @@ func (service *Service) AssignCategory(ctx context.Context, productID uuid.UUID,
 	return service.repository.AssignCategory(ctx, productID, input)
 }
 
+func (service *Service) ListProductCategories(ctx context.Context, productID uuid.UUID) ([]domain.ProductCategory, error) {
+	if _, err := service.repository.GetProduct(ctx, productID); err != nil {
+		return nil, err
+	}
+	return service.repository.ListProductCategories(ctx, productID)
+}
+
 func (service *Service) RemoveCategory(ctx context.Context, productID, categoryID uuid.UUID) error {
 	return service.repository.RemoveCategory(ctx, productID, categoryID)
 }
@@ -128,6 +135,13 @@ func (service *Service) CreateImage(ctx context.Context, productID uuid.UUID, in
 		SortOrder: input.SortOrder,
 		IsPrimary: input.IsPrimary,
 	})
+}
+
+func (service *Service) ListImages(ctx context.Context, productID uuid.UUID) ([]domain.ProductImage, error) {
+	if _, err := service.repository.GetProduct(ctx, productID); err != nil {
+		return nil, err
+	}
+	return service.repository.ListImages(ctx, productID)
 }
 
 func (service *Service) UpdateImage(ctx context.Context, productID, imageID uuid.UUID, input UpdateImageInput) (domain.ProductImage, error) {
@@ -316,6 +330,13 @@ func (service *Service) CreateReservation(ctx context.Context, input CreateReser
 	}
 	sort.Slice(input.Items, func(i, j int) bool { return input.Items[i].SKUID.String() < input.Items[j].SKUID.String() })
 	return service.repository.CreateReservation(ctx, input, actorID)
+}
+
+func (service *Service) ListReservations(ctx context.Context, filter ListFilter) (Page[domain.Reservation], error) {
+	normalizePage(&filter)
+	filter.ReferenceType = strings.ToUpper(strings.TrimSpace(filter.ReferenceType))
+	filter.ReferenceID = strings.TrimSpace(filter.ReferenceID)
+	return service.repository.ListReservations(ctx, filter)
 }
 
 func (service *Service) GetReservation(ctx context.Context, id uuid.UUID) (domain.Reservation, error) {
