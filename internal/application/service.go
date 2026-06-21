@@ -12,12 +12,21 @@ import (
 	"github.com/saaof/order-platform/catalog-service/internal/domain"
 )
 
-type Service struct {
-	repository Repository
+type FileValidator interface {
+	ValidateImage(context.Context, uuid.UUID) error
 }
 
-func NewService(repository Repository) *Service {
-	return &Service{repository: repository}
+type Service struct {
+	repository Repository
+	files      FileValidator
+}
+
+func NewService(repository Repository, validators ...FileValidator) *Service {
+	var files FileValidator
+	if len(validators) > 0 {
+		files = validators[0]
+	}
+	return &Service{repository: repository, files: files}
 }
 
 func (service *Service) CreateCategory(ctx context.Context, input CreateCategoryInput) (domain.Category, error) {
@@ -126,6 +135,11 @@ func (service *Service) RemoveCategory(ctx context.Context, productID, categoryI
 func (service *Service) CreateImage(ctx context.Context, productID uuid.UUID, input CreateImageInput) (domain.ProductImage, error) {
 	if _, err := service.repository.GetProduct(ctx, productID); err != nil {
 		return domain.ProductImage{}, err
+	}
+	if service.files != nil {
+		if err := service.files.ValidateImage(ctx, input.FileID); err != nil {
+			return domain.ProductImage{}, err
+		}
 	}
 	return service.repository.CreateImage(ctx, domain.ProductImage{
 		ID:        uuid.New(),

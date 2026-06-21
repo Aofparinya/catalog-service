@@ -14,9 +14,22 @@ import (
 	"gorm.io/gorm"
 )
 
-type Repository struct{ db *gorm.DB }
+type NumberIssuer interface {
+	NextNumber(context.Context, string) (string, error)
+}
 
-func NewRepository(db *gorm.DB) *Repository { return &Repository{db: db} }
+type Repository struct {
+	db      *gorm.DB
+	numbers NumberIssuer
+}
+
+func NewRepository(db *gorm.DB, issuers ...NumberIssuer) *Repository {
+	var numbers NumberIssuer
+	if len(issuers) > 0 {
+		numbers = issuers[0]
+	}
+	return &Repository{db: db, numbers: numbers}
+}
 
 func (r *Repository) CreateCategory(ctx context.Context, value domain.Category) (domain.Category, error) {
 	if value.ParentID != nil {
@@ -97,8 +110,14 @@ func (r *Repository) CreateProduct(ctx context.Context, value domain.Product) (d
 	var result productModel
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var number string
-		if err := tx.Raw(`SELECT 'PRD-' || to_char(CURRENT_DATE,'YYYYMMDD') || '-' || lpad(nextval('catalog.product_number_seq')::text,6,'0')`).Scan(&number).Error; err != nil {
-			return err
+		var numberError error
+		if r.numbers != nil {
+			number, numberError = r.numbers.NextNumber(ctx, "PRD")
+		} else {
+			numberError = tx.Raw(`SELECT 'PRD-' || to_char(CURRENT_DATE,'YYYYMMDD') || '-' || lpad(nextval('catalog.product_number_seq')::text,6,'0')`).Scan(&number).Error
+		}
+		if numberError != nil {
+			return numberError
 		}
 		result = productModel{ID: value.ID, ProductNo: number, Name: value.Name, Description: value.Description, Status: string(value.Status), CreatedBy: value.CreatedBy, UpdatedBy: value.UpdatedBy}
 		return tx.Create(&result).Error

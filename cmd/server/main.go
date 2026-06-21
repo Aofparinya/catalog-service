@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/saaof/order-platform/catalog-service/internal/adapter/auth"
+	commonclient "github.com/saaof/order-platform/catalog-service/internal/adapter/common"
 	httpadapter "github.com/saaof/order-platform/catalog-service/internal/adapter/http"
 	postgresrepository "github.com/saaof/order-platform/catalog-service/internal/adapter/persistence/postgres"
+	storageclient "github.com/saaof/order-platform/catalog-service/internal/adapter/storage"
 	"github.com/saaof/order-platform/catalog-service/internal/application"
 	"github.com/saaof/order-platform/catalog-service/internal/config"
 	"github.com/saaof/order-platform/catalog-service/internal/infrastructure/database"
@@ -45,8 +47,10 @@ func run() error {
 		return err
 	}
 
-	repository := postgresrepository.NewRepository(db)
-	service := application.NewService(repository)
+	numberClient := commonclient.New(cfg.CommonURL, cfg.AuthURL, cfg.ServiceClientID, cfg.ServiceClientSecret)
+	repository := postgresrepository.NewRepository(db, numberClient)
+	fileClient := storageclient.New(cfg.StorageURL, numberClient)
+	service := application.NewService(repository, fileClient)
 	authClient := auth.NewClient(cfg.AuthURL, cfg.AuthCacheTTL)
 	handler := httpadapter.NewHandler(service)
 	server := httpadapter.NewRouter(handler, authClient, cfg.CORSOrigins)
